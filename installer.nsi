@@ -12,7 +12,7 @@
 
 
 !define APP_NAME      "F4ST"
-!define APP_VERSION   "1.0"
+!define APP_VERSION   "1.1"
 !define APP_URL       "https://borrageiros.github.io/F4ST/"
 
 

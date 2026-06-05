@@ -23,7 +23,7 @@
 
 // App
 #define APP_NAME            L"F4ST"
-#define APP_VERSION         "1.0"
+#define APP_VERSION         "1.1"
 #define APP_URL             L"https://borrageiros.github.io/F4ST/"
 
 // Messages

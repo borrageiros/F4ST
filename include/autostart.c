@@ -10,31 +10,60 @@
   This is a modified version of SuperF4 by Stefan Sundin.
 */
 
-// No error reporting since we don't want the user to be interrupted
-int CheckAutostart() {
-  // Read registry
-  HKEY key;
-  wchar_t value[MAX_PATH+20] = L"";
-  DWORD len = sizeof(value);
-  RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_QUERY_VALUE, &key);
-  RegQueryValueEx(key, APP_NAME, NULL, NULL, (LPBYTE)value, &len);
-  RegCloseKey(key);
-  // Compare
-  wchar_t path[MAX_PATH], compare[MAX_PATH+20];
-  GetModuleFileName(NULL, path, ARRAY_SIZE(path));
-  swprintf(compare, ARRAY_SIZE(compare), L"\"%s\"", path);
-  if (wcsstr(value,compare) != value) {
+#define AUTOSTART_VALUE_MAX (MAX_PATH + 64)
+
+static int BuildAutostartValue(wchar_t *value, DWORD valueSize, int elevate) {
+  wchar_t path[MAX_PATH];
+  DWORD pathLen = GetModuleFileName(NULL, path, ARRAY_SIZE(path));
+  DWORD needed;
+
+  if (pathLen == 0 || pathLen >= ARRAY_SIZE(path)) {
     return 0;
   }
-  // Autostart is on, check arguments
-  if (wcsstr(value,L" -elevate") != NULL) {
+  path[ARRAY_SIZE(path) - 1] = L'\0';
+
+  needed = 3 + pathLen + (elevate ? 9 : 0);
+  if (needed >= valueSize) {
+    return 0;
+  }
+
+  value[0] = L'"';
+  wcscpy(value + 1, path);
+  wcscat(value, L"\"");
+  if (elevate) {
+    wcscat(value, L" -elevate");
+  }
+  return 1;
+}
+
+int CheckAutostart() {
+  HKEY key;
+  wchar_t value[AUTOSTART_VALUE_MAX] = L"";
+  wchar_t compare[AUTOSTART_VALUE_MAX];
+  DWORD len = sizeof(value);
+
+  if (RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_QUERY_VALUE, &key) != ERROR_SUCCESS) {
+    return 0;
+  }
+  if (RegQueryValueEx(key, APP_NAME, NULL, NULL, (LPBYTE)value, &len) != ERROR_SUCCESS) {
+    RegCloseKey(key);
+    return 0;
+  }
+  RegCloseKey(key);
+
+  if (!BuildAutostartValue(compare, ARRAY_SIZE(compare), 0)) {
+    return 0;
+  }
+  if (wcscmp(value, compare) != 0 && wcsstr(value, compare) != value) {
+    return 0;
+  }
+  if (wcsstr(value, L" -elevate") != NULL) {
     return 2;
   }
   return 1;
 }
 
 void SetAutostart(int on, int elevate) {
-  // Open key
   HKEY key;
   int error = RegCreateKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, NULL, 0, KEY_SET_VALUE, NULL, &key, NULL);
   if (error != ERROR_SUCCESS) {
@@ -42,25 +71,25 @@ void SetAutostart(int on, int elevate) {
     return;
   }
   if (on) {
-    // Get path
-    wchar_t path[MAX_PATH], value[MAX_PATH+20];
-    GetModuleFileName(NULL, path, ARRAY_SIZE(path));
-    swprintf(value, ARRAY_SIZE(value), L"\"%s\"%s", path, (elevate?L" -elevate":L""));
-    // Set autostart
-    error = RegSetValueEx(key, APP_NAME, 0, REG_SZ, (LPBYTE)value, (wcslen(value)+1)*sizeof(value[0]));
+    wchar_t value[AUTOSTART_VALUE_MAX];
+    if (!BuildAutostartValue(value, ARRAY_SIZE(value), elevate)) {
+      RegCloseKey(key);
+      return;
+    }
+    error = RegSetValueEx(key, APP_NAME, 0, REG_SZ, (LPBYTE)value, (DWORD)((wcslen(value) + 1) * sizeof(value[0])));
     if (error != ERROR_SUCCESS) {
       Error(L"RegSetValueEx('"APP_NAME"')", L"SetAutostart()", error);
+      RegCloseKey(key);
       return;
     }
   }
   else {
-    // Remove
     error = RegDeleteValue(key, APP_NAME);
-    if (error != ERROR_SUCCESS) {
-    Error(L"RegDeleteValue('"APP_NAME"')", L"SetAutostart()", error);
+    if (error != ERROR_SUCCESS && error != ERROR_FILE_NOT_FOUND) {
+      Error(L"RegDeleteValue('"APP_NAME"')", L"SetAutostart()", error);
+      RegCloseKey(key);
       return;
     }
   }
-  // Close key
   RegCloseKey(key);
 }
