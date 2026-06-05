@@ -12,7 +12,7 @@
 
 
 !define APP_NAME      "F4ST"
-!define APP_VERSION   "1.0"
+!define APP_VERSION   "1.2"
 !define APP_URL       "https://borrageiros.github.io/F4ST/"
 
 
@@ -310,6 +310,7 @@ Section "Uninstall"
   Delete /REBOOTOK "$SMPROGRAMS\${APP_NAME}.lnk"
 
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${APP_NAME}"
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "${APP_NAME}"
   DeleteRegKey /ifempty HKCU "Software\${APP_NAME}"
   DeleteRegKey /ifempty HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}"
 SectionEnd

@@ -23,7 +23,7 @@
 
 // App
 #define APP_NAME            L"F4ST"
-#define APP_VERSION         "1.0"
+#define APP_VERSION         "1.2"
 #define APP_URL             L"https://borrageiros.github.io/F4ST/"
 
 // Messages
@@ -209,6 +209,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInstance, LPSTR szCmdLine, in
     // CtrlAltF4XKill
     GetPrivateProfileString(L"General", L"CtrlAltF4XKill", L"0", txt, ARRAY_SIZE(txt), inipath);
     ctrlaltf4_xkill = _wtoi(txt);
+
+    MigrateAutostartFromRegistry();
+    SyncAutostartRegistry();
   }
 
   // Message loop
